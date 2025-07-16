@@ -1,48 +1,124 @@
-const boxes = document.querySelectorAll(".box");
-const restartBtn = document.querySelector("#restart");
-const msg = document.querySelector("#msg");
 
-let turn = "X";
-let gameOver = false;
+const cells = document.querySelectorAll(".cell");
+const status = document.getElementById("status");
+const modeSelect = document.getElementById("modeSelect");
 
-const checkWinner = () => {
-    const winPatterns = [
-        [0,1,2], [3,4,5], [6,7,8], // rows
-        [0,3,6], [1,4,7], [2,5,8], // columns
-        [0,4,8], [2,4,6]           // diagonals
-    ];
+let board = Array(9).fill("");
+let currentPlayer = "X";
+let isGameOver = false;
+let mode = "ai";
 
-    winPatterns.forEach(pattern => {
-        let [a,b,c] = pattern;
-        if (
-            boxes[a].innerText &&
-            boxes[a].innerText === boxes[b].innerText &&
-            boxes[a].innerText === boxes[c].innerText
-        ) {
-            msg.innerText = `Player ${boxes[a].innerText} wins! 🎉`;
-            gameOver = true;
-            boxes.forEach(box => box.disabled = true);
-        }
-    });
-};
-
-boxes.forEach(box => {
-    box.addEventListener("click", () => {
-        if (!box.innerText && !gameOver) {
-            box.innerText = turn;
-            box.disabled = true;
-            checkWinner();
-            turn = turn === "X" ? "O" : "X";
-        }
-    });
+modeSelect.addEventListener("change", () => {
+  mode = modeSelect.value;
+  resetGame();
 });
 
-restartBtn.addEventListener("click", () => {
-    boxes.forEach(box => {
-        box.innerText = "";
-        box.disabled = false;
-    });
-    msg.innerText = "Let's Play the Game";
-    turn = "X";
-    gameOver = false;
+cells.forEach(cell => {
+  cell.addEventListener("click", handleCellClick);
 });
+
+function handleCellClick(e) {
+  const index = e.target.dataset.index;
+  if (board[index] !== "" || isGameOver) return;
+
+  board[index] = currentPlayer;
+  e.target.textContent = currentPlayer;
+
+  if (checkWinner()) {
+    status.textContent = `${currentPlayer} wins! 🎉`;
+    isGameOver = true;
+    return;
+  }
+
+  if (!board.includes("")) {
+    status.textContent = "It's a draw! 🤝";
+    isGameOver = true;
+    return;
+  }
+
+  currentPlayer = currentPlayer === "X" ? "O" : "X";
+
+  if (mode === "ai" && currentPlayer === "O") {
+    setTimeout(aiMove, 300);
+  }
+}
+
+function aiMove() {
+  let bestScore = -Infinity;
+  let move;
+  for (let i = 0; i < 9; i++) {
+    if (board[i] === "") {
+      board[i] = "O";
+      let score = minimax(board, 0, false);
+      board[i] = "";
+      if (score > bestScore) {
+        bestScore = score;
+        move = i;
+      }
+    }
+  }
+  board[move] = "O";
+  cells[move].textContent = "O";
+  if (checkWinner()) {
+    status.textContent = `O wins! 🎉`;
+    isGameOver = true;
+    return;
+  }
+  if (!board.includes("")) {
+    status.textContent = "It's a draw! 🤝";
+    isGameOver = true;
+    return;
+  }
+  currentPlayer = "X";
+}
+
+function minimax(newBoard, depth, isMaximizing) {
+  const winner = checkWinner(newBoard);
+  if (winner === "O") return 1;
+  if (winner === "X") return -1;
+  if (!newBoard.includes("")) return 0;
+
+  if (isMaximizing) {
+    let best = -Infinity;
+    for (let i = 0; i < 9; i++) {
+      if (newBoard[i] === "") {
+        newBoard[i] = "O";
+        best = Math.max(best, minimax(newBoard, depth + 1, false));
+        newBoard[i] = "";
+      }
+    }
+    return best;
+  } else {
+    let best = Infinity;
+    for (let i = 0; i < 9; i++) {
+      if (newBoard[i] === "") {
+        newBoard[i] = "X";
+        best = Math.min(best, minimax(newBoard, depth + 1, true));
+        newBoard[i] = "";
+      }
+    }
+    return best;
+  }
+}
+
+function checkWinner(b = board) {
+  const wins = [
+    [0,1,2], [3,4,5], [6,7,8],
+    [0,3,6], [1,4,7], [2,5,8],
+    [0,4,8], [2,4,6]
+  ];
+  for (let [a, b1, c] of wins) {
+    if (b[a] && b[a] === b[b1] && b[a] === b[c]) {
+      return b[a];
+    }
+  }
+  return null;
+}
+
+function resetGame() {
+  board = Array(9).fill("");
+  currentPlayer = "X";
+  isGameOver = false;
+  status.textContent = "";
+  cells.forEach(cell => (cell.textContent = ""));
+}
